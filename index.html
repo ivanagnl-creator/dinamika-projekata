@@ -577,14 +577,22 @@ body {
       </div>
       <div class="stats-grid" id="pg-stats">
     <div class="stat-card stat-accent"><div class="stat-label">Ukupno projekata</div><div class="stat-value">22</div></div>
-    <div class="stat-card"><div class="stat-label">Ugovoreno / radovi</div><div class="stat-value" style="color:var(--success)">16</div></div>
-    <div class="stat-card"><div class="stat-label">Nabava u tijeku</div><div class="stat-value" style="color:var(--warning)">1</div></div>
+    <div class="stat-card"><div class="stat-label">Ugovoreno / radovi</div><div class="stat-value" style="color:var(--success)">15</div></div>
+    <div class="stat-card"><div class="stat-label">Nabava u tijeku</div><div class="stat-value" style="color:var(--warning)">2</div></div>
     <div class="stat-card"><div class="stat-label">U pripremi</div><div class="stat-value">2</div></div>
     <div class="stat-card"><div class="stat-label">Poništeno / obustavljeno</div><div class="stat-value" style="color:#c62828">3</div></div>
     <div class="stat-card"><div class="stat-label">Proračun projekata</div><div class="stat-value sm">5.463.600 €</div></div>
     <div class="stat-card"><div class="stat-label">Ugovoreno €</div><div class="stat-value sm">3.189.247 €</div></div>
     <div class="stat-card"><div class="stat-label">Razlika (proračun − ugovoreno)</div><div class="stat-value sm" style="color:#2e7d32">2.274.353 €</div></div></div>
-      <div class="ov-grid" id="pg-ov"><div class="ov-card" onclick="setCat('SOS');setPage('projekti')">
+      <div class="ov-grid" id="pg-ov"><div class="ov-card" onclick="setCat('VERTIKALE');setPage('projekti')">
+      <div class="ov-cat-name">VERTIKALE <span style="font-size:11px;color:var(--text3);font-weight:400">10 proj.</span><span style="font-size:10px;color:#c62828;margin-left:6px">1 pauz.</span></div>
+      <div class="ov-nums">
+        <span class="ok">8 ugovoreno</span>
+        <span>0 nabava</span>
+        <span>1.217.800 €</span>
+      </div>
+      <div class="ov-track"><div class="ov-fill" style="width:71%"></div></div>
+    </div><div class="ov-card" onclick="setCat('SOS');setPage('projekti')">
       <div class="ov-cat-name">SOS <span style="font-size:11px;color:var(--text3);font-weight:400">3 proj.</span></div>
       <div class="ov-nums">
         <span class="ok">2 ugovoreno</span>
@@ -592,6 +600,14 @@ body {
         <span>775.000 €</span>
       </div>
       <div class="ov-track"><div class="ov-fill" style="width:53%"></div></div>
+    </div><div class="ov-card" onclick="setCat('KOTLOVNICE');setPage('projekti')">
+      <div class="ov-cat-name">KOTLOVNICE <span style="font-size:11px;color:var(--text3);font-weight:400">2 proj.</span><span style="font-size:10px;color:#c62828;margin-left:6px">1 pauz.</span></div>
+      <div class="ov-nums">
+        <span class="ok">2 ugovoreno</span>
+        <span>0 nabava</span>
+        <span>532.500 €</span>
+      </div>
+      <div class="ov-track"><div class="ov-fill" style="width:67%"></div></div>
     </div><div class="ov-card" onclick="setCat('KLIME');setPage('projekti')">
       <div class="ov-cat-name">KLIME <span style="font-size:11px;color:var(--text3);font-weight:400">2 proj.</span><span style="font-size:10px;color:#c62828;margin-left:6px">1 pauz.</span></div>
       <div class="ov-nums">
@@ -603,27 +619,11 @@ body {
     </div><div class="ov-card" onclick="setCat('ALZHEIMER');setPage('projekti')">
       <div class="ov-cat-name">ALZHEIMER <span style="font-size:11px;color:var(--text3);font-weight:400">2 proj.</span></div>
       <div class="ov-nums">
-        <span class="ok">2 ugovoreno</span>
-        <span>0 nabava</span>
+        <span class="ok">1 ugovoreno</span>
+        <span>1 nabava</span>
         <span>1.540.000 €</span>
       </div>
       <div class="ov-track"><div class="ov-fill" style="width:17%"></div></div>
-    </div><div class="ov-card" onclick="setCat('VERTIKALE');setPage('projekti')">
-      <div class="ov-cat-name">VERTIKALE <span style="font-size:11px;color:var(--text3);font-weight:400">10 proj.</span><span style="font-size:10px;color:#c62828;margin-left:6px">1 pauz.</span></div>
-      <div class="ov-nums">
-        <span class="ok">8 ugovoreno</span>
-        <span>0 nabava</span>
-        <span>1.217.800 €</span>
-      </div>
-      <div class="ov-track"><div class="ov-fill" style="width:71%"></div></div>
-    </div><div class="ov-card" onclick="setCat('KOTLOVNICE');setPage('projekti')">
-      <div class="ov-cat-name">KOTLOVNICE <span style="font-size:11px;color:var(--text3);font-weight:400">2 proj.</span><span style="font-size:10px;color:#c62828;margin-left:6px">1 pauz.</span></div>
-      <div class="ov-nums">
-        <span class="ok">2 ugovoreno</span>
-        <span>0 nabava</span>
-        <span>532.500 €</span>
-      </div>
-      <div class="ov-track"><div class="ov-fill" style="width:67%"></div></div>
     </div></div>
     </div>
 
@@ -3399,7 +3399,7 @@ async function exportExcel(){
 }
 
 // ── INIT ──
-const _ZADNJI_UREDNIK = 'Ivana, 21.07.2026 u 13:24';
+const _ZADNJI_UREDNIK = 'Ivana, 15.07.2026 u 10:28';
 window.addEventListener('DOMContentLoaded',async function(){
   const savedTheme=localStorage.getItem('dso_theme');
   if(savedTheme)document.documentElement.setAttribute('data-theme',savedTheme);
