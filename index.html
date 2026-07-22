@@ -2285,6 +2285,7 @@ function supaValidOrgs(orgs) {
 async function supaLoad() {
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${SUPA_ROW_ID}&select=data`, {
+      cache: 'no-store',
       headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
     });
     if (!r.ok) {
@@ -2297,7 +2298,7 @@ async function supaLoad() {
       console.warn('[SUPA] Baza ne sadrzi valjane podatke - ignoriram ih', d);
       return null;
     }
-    console.log('[SUPA] LOAD OK - ucitano iz baze');
+    console.log('[SUPA] LOAD OK - ucitano iz baze, duljina:', JSON.stringify(d).length);
     return d;
   } catch(e) {
     console.error('[SUPA] LOAD IZNIMKA', e);
