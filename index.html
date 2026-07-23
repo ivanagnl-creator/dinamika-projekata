@@ -2269,6 +2269,9 @@ const SUPA_URL = 'https://dfyoretkmtxqunvbaqyq.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmeW9yZXRrbXR4cXVudmJhcXlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MDg4NDEsImV4cCI6MjEwMDE4NDg0MX0.QHYeV-jJjhWpzDi7w9oIFCdWFBNw66abg_U8X70ZztU';
 const SUPA_TABLE = 'Dinamika';
 const SUPA_ROW_ID = 1;
+// Broj verzije zapisa u bazi, procitan pri zadnjem ucitavanju.
+// Sluzi da se prepozna je li netko drugi spremio izmjene u meduvremenu.
+let SUPA_VERZIJA = null;
 
 // Provjera da podatak stvarno sadrzi projekte, a ne testni/prazan objekt
 function supaValidOrgs(orgs) {
@@ -2284,7 +2287,7 @@ function supaValidOrgs(orgs) {
 
 async function supaLoad() {
   try {
-    const r = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${SUPA_ROW_ID}&select=data`, {
+    const r = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${SUPA_ROW_ID}&select=data,verzija`, {
       cache: 'no-store',
       headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
     });
@@ -2294,6 +2297,10 @@ async function supaLoad() {
     }
     const rows = await r.json();
     const d = (rows && rows.length > 0 && rows[0].data) ? rows[0].data : null;
+    if (rows && rows.length > 0 && typeof rows[0].verzija === 'number') {
+      SUPA_VERZIJA = rows[0].verzija;
+      console.log('[SUPA] Verzija u bazi:', SUPA_VERZIJA);
+    }
     if (!d || !supaValidOrgs(d.orgs)) {
       console.warn('[SUPA] Baza ne sadrzi valjane podatke - ignoriram ih', d);
       return null;
@@ -2312,22 +2319,36 @@ async function supaSave(dataObj) {
       console.error('[SUPA] SAVE ODBIJEN - podaci izgledaju prazno, ne saljem u bazu', dataObj);
       return false;
     }
-    const r = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?on_conflict=id`, {
-      method: 'POST',
+    if (SUPA_VERZIJA === null) {
+      console.error('[SUPA] SAVE PRESKOCEN - verzija iz baze nije poznata (ucitavanje nije uspjelo)');
+      return 'nepoznato';
+    }
+    // Upisi SAMO ako je verzija u bazi jos uvijek ona koju smo ucitali.
+    // Ako ju je netko u meduvremenu promijenio, baza nece izmijeniti nijedan redak.
+    const r = await fetch(
+      `${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${SUPA_ROW_ID}&verzija=eq.${SUPA_VERZIJA}`, {
+      method: 'PATCH',
       headers: {
         'apikey': SUPA_KEY,
         'Authorization': 'Bearer ' + SUPA_KEY,
         'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates,return=representation'
+        'Prefer': 'return=representation'
       },
-      body: JSON.stringify({ id: SUPA_ROW_ID, data: dataObj })
+      body: JSON.stringify({ data: dataObj, verzija: SUPA_VERZIJA + 1 })
     });
     const txt = await r.text();
     if (!r.ok) {
       console.error('[SUPA] SAVE GRESKA', r.status, txt);
       return false;
     }
-    console.log('[SUPA] SAVE OK', r.status);
+    let vraceno = [];
+    try { vraceno = JSON.parse(txt); } catch(e) {}
+    if (!Array.isArray(vraceno) || vraceno.length === 0) {
+      console.warn('[SUPA] SUDAR - netko je spremio izmjene u meduvremenu. Nista nije prepisano.');
+      return 'sudar';
+    }
+    SUPA_VERZIJA = vraceno[0].verzija;
+    console.log('[SUPA] SAVE OK, nova verzija:', SUPA_VERZIJA);
     return true;
   } catch(e) {
     console.error('[SUPA] SAVE IZNIMKA', e);
@@ -2457,7 +2478,14 @@ function save(){
     localStorage.setItem(STORE,JSON.stringify(payload));
     // Spremi u Supabase (async, ne čekamo)
     supaSave(payload).then(ok=>{
-      if(!ok) console.warn('Supabase save nije uspio, podaci su spremljeni lokalno.');
+      if(ok === 'sudar'){
+        upozoriNaSudar();
+      } else if(ok === 'nepoznato'){
+        toast('Nema veze s bazom - spremljeno samo lokalno');
+      } else if(!ok){
+        console.warn('Supabase save nije uspio, podaci su spremljeni lokalno.');
+        toast('Spremanje u bazu nije uspjelo');
+      }
     });
   }catch(e){}
 }
@@ -2503,6 +2531,33 @@ function addOrg(){
 function uid(){return'p'+Date.now()+Math.random().toString(36).slice(2,6);}
 function today(){const d=new Date();return`${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()}.`;}
 function fmt(n){if(!n&&n!==0)return'—';return new Intl.NumberFormat('hr-HR',{maximumFractionDigits:0}).format(n)+' €';}
+// Prikazuje se kad je netko drugi spremio izmjene dok si ti radila.
+// Tvoja izmjena je u lokalnoj kopiji, ali NIJE u zajednickoj bazi.
+function upozoriNaSudar(){
+  var d=document.getElementById('sudar-obavijest');
+  if(d) return;
+  d=document.createElement('div');
+  d.id='sudar-obavijest';
+  d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);'+
+    'display:flex;align-items:center;justify-content:center;padding:20px';
+  d.innerHTML=
+    '<div style="background:#fff;max-width:460px;border-radius:10px;padding:22px 24px;'+
+    'box-shadow:0 8px 30px rgba(0,0,0,.3);font-size:14px;line-height:1.55">'+
+    '<div style="font-weight:700;color:#c00000;font-size:16px;margin-bottom:10px">'+
+    'Netko je u meduvremenu spremio izmjene</div>'+
+    '<p style="margin:0 0 10px">Tvoja zadnja izmjena <b>nije</b> spremljena u zajednicku bazu, '+
+    'da ne bi prebrisala tudi rad.</p>'+
+    '<p style="margin:0 0 16px">Osvjezi stranicu da vidis novo stanje, pa unesi svoju izmjenu ponovno. '+
+    'Ako je izmjena bila opsezna, prvo ju negdje zapisi.</p>'+
+    '<button onclick="location.reload()" style="background:#1a4ea8;color:#fff;border:none;'+
+    'padding:9px 16px;border-radius:6px;font-size:14px;cursor:pointer;margin-right:8px">'+
+    'Osvjezi stranicu</button>'+
+    '<button onclick="document.getElementById(\'sudar-obavijest\').remove()" '+
+    'style="background:#eee;color:#333;border:none;padding:9px 16px;border-radius:6px;'+
+    'font-size:14px;cursor:pointer">Zatvori</button>'+
+    '</div>';
+  document.body.appendChild(d);
+}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function ispisPage(pageId) {
   // Ukloni print-active sa svih stranica
