@@ -2407,6 +2407,17 @@ async function load(){
     db=allOrgs[activeOrg];
   }
   activeCat=Object.keys(db)[0]||Object.keys(DEFAULT)[0];
+  // Vrati korisnika na zadnju kategoriju/ustanovu/stranicu na kojoj je bio
+  try{
+    const v=JSON.parse(localStorage.getItem('DP_VIEW')||'null');
+    if(v){
+      if(v.org && allOrgs[v.org]){ activeOrg=v.org; db=allOrgs[v.org]; }
+      if(v.cat && Array.isArray(db[v.cat])) activeCat=v.cat;
+      if(v.ust) activeUst=v.ust;
+      if(v.page) activePage=v.page;
+      console.log('[VIEW] Vracam se na:', activeOrg, '/', activeCat, '/', activeUst);
+    }
+  }catch(e){}
 
   // Osiguraj da db ima __gantt iz embedded podataka
   if(typeof _EMBEDDED_DATA !== 'undefined' && _EMBEDDED_DATA.orgs) {
@@ -2530,6 +2541,7 @@ function allActive(){return Object.entries(db).filter(([k])=>!k.startsWith('__')
 // ── PAGES ──
 function setPage(p){
   activePage=p;
+  if(typeof rememberView==='function')rememberView();
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
@@ -2596,8 +2608,15 @@ function renderPregled(){
 }
 
 // ── PROJEKTI ──
-function setCat(c){activeCat=c;activeUst='SVE';}
-function setUst(u){activeUst=u;renderProjects();}
+function rememberView(){
+  try{
+    localStorage.setItem('DP_VIEW', JSON.stringify({
+      org: activeOrg, cat: activeCat, ust: activeUst, page: activePage
+    }));
+  }catch(e){}
+}
+function setCat(c){activeCat=c;activeUst='SVE';rememberView();}
+function setUst(u){activeUst=u;rememberView();renderProjects();}
 
 function renderProjects(){
   const pjTitle=document.getElementById('pj-title');
