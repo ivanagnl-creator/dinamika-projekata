@@ -3627,10 +3627,28 @@ function downloadHTML(){
   const vr=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
   const kor=(localStorage.getItem('dso_username')||'nepoznat').replace(/['"]/g,'');
   const zadnji=kor+', '+ds+' u '+vr;
-  // Ukloni zadnji-urednik-div prije generiranja HTML stringa
-  var tmpDiv=document.getElementById('zadnji-urednik-div');
-  if(tmpDiv) tmpDiv.remove();
-  let htmlStr=document.documentElement.outerHTML;
+  // Radi se na KOPIJI stranice - ekran korisnika ostaje netaknut.
+  // Iz kopije se brise sve sto je program iscrtao, da se u datoteku
+  // ne zalijepi zamrznuta slika ekrana (inace aplikacija nakon objave
+  // prikazuje stare podatke dok se nesto ne klikne).
+  var clone=document.documentElement.cloneNode(true);
+  var DYN=['proj-cards','cat-tabs','ust-tabs','pj-stats','pg-ov','pg-stats',
+           'arch-content','analiza-content','modal-body',
+           'page-timeline','page-proracun'];
+  DYN.forEach(function(id){
+    var e=clone.querySelector('#'+id);
+    if(e) e.innerHTML='';
+  });
+  // Nijedna stranica ne smije ostati oznacena kao aktivna
+  Array.prototype.forEach.call(clone.querySelectorAll('.page.active, .nav-btn.active'),
+    function(e){ e.classList.remove('active'); });
+  // Makni privremene elemente
+  ['zadnji-urednik-div','modal-bg'].forEach(function(id){
+    var e=clone.querySelector('#'+id);
+    if(e && id==='zadnji-urednik-div') e.remove();
+    if(e && id==='modal-bg') e.classList.remove('open');
+  });
+  let htmlStr='<!DOCTYPE html>\n'+clone.outerHTML;
   const MARKER='const _ZADNJI_UREDNIK = \x27\x27;';
   const FILLED='const _ZADNJI_UREDNIK = \x27'+zadnji+'\x27;';
   if(htmlStr.indexOf(MARKER)!==-1){
