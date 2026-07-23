@@ -3812,7 +3812,7 @@ window.addEventListener('DOMContentLoaded',async function(){
   currentUser=localStorage.getItem('dso_username')||'';
   await load();
   // NE pozivamo save() automatski - ne želimo prepisati Supabase podatke s lokalnim
-  if(!currentUser){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();render();}
+  if(!currentUser){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();setPage(activePage||'pregled');}
   // Prikaži zadnjeg urednika dinamički iz localStorage
   var zadnjiUrednik = localStorage.getItem('dso_zadnji_urednik') || '';
   if(zadnjiUrednik){
@@ -3840,7 +3840,7 @@ function submitLogin(){
   localStorage.setItem('dso_username',v);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('username-display').textContent=currentUser;
-  render();
+  setPage(activePage||'pregled');
 }
 function updateAvatar(){const av=document.getElementById('user-avatar');if(av&&currentUser){av.textContent=currentUser.trim().charAt(0).toUpperCase();}}
 function changeUser(){
