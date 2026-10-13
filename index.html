@@ -986,9 +986,8 @@ async function supaLoad() {
       SUPA_VERZIJA = rows[0].verzija;
       console.log('[SUPA] Verzija u bazi:', SUPA_VERZIJA);
     }
-    if (rows && rows.length > 0 && rows[0].zadnji_urednik) {
-      localStorage.setItem('dso_zadnji_urednik', rows[0].zadnji_urednik);
-    }
+    ZADNJI_IZ_BAZE = (rows && rows.length > 0 && rows[0].zadnji_urednik) ? rows[0].zadnji_urednik : '';
+    console.log('[ZADNJI] iz baze:', ZADNJI_IZ_BAZE || '(prazno)');
     if (!d || !supaValidOrgs(d.orgs)) {
       console.warn('[SUPA] Baza ne sadrzi valjane podatke - ignoriram ih', d);
       return null;
@@ -1023,6 +1022,8 @@ function sakrijBazaMirovanje(){
   if (d) { d.remove(); document.body.style.paddingTop = ''; }
 }
 
+let ZADNJI_IZ_BAZE = '';         // zadnji urednik procitan iz baze
+try { localStorage.removeItem('dso_zadnji_urednik'); } catch(e) {}
 let SUPA_IMA_ZADNJEG = true;      // postoji li stupac zadnji_urednik u tablici
 let ZADNJI_ZA_SPREMITI = null;    // "Ime, dd.mm.gggg u hh:mm" - postavlja save()
 async function supaSave(dataObj) {
@@ -1067,6 +1068,7 @@ async function supaSave(dataObj) {
     }
     SUPA_VERZIJA = vraceno[0].verzija;
     console.log('[SUPA] SAVE OK, nova verzija:', SUPA_VERZIJA);
+    if (SUPA_IMA_ZADNJEG && ZADNJI_ZA_SPREMITI) { ZADNJI_IZ_BAZE = ZADNJI_ZA_SPREMITI; prikaziZadnjegUrednika(); }
     return true;
   } catch(e) {
     console.error('[SUPA] SAVE IZNIMKA', e);
@@ -1191,7 +1193,6 @@ function save(){
       const ds = now.getDate().toString().padStart(2,'0')+'.'+(now.getMonth()+1).toString().padStart(2,'0')+'.'+now.getFullYear();
       const vr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
       ZADNJI_ZA_SPREMITI = currentUser + ', ' + ds + ' u ' + vr;
-      localStorage.setItem('dso_zadnji_urednik', ZADNJI_ZA_SPREMITI);
     }
     // Spremi lokalno kao backup
     localStorage.setItem(STORE,JSON.stringify(payload));
@@ -2606,21 +2607,23 @@ window.addEventListener('DOMContentLoaded',async function(){
   // NE pozivamo save() automatski - ne želimo prepisati Supabase podatke s lokalnim
   if (SUPA_NEDOSTUPNA) prikaziBazaMirovanje(); else sakrijBazaMirovanje();
   if(!currentUser){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();jeGost=(sessionStorage.getItem('dso_gost')==='1');primijeniGostNacin();setPage(activePage||'pregled');}
-  // Prikaži zadnjeg urednika dinamički iz localStorage
-  var zadnjiUrednik = localStorage.getItem('dso_zadnji_urednik') || '';
-  if(zadnjiUrednik){
-    setTimeout(function(){
-      var existing=document.getElementById('zadnji-urednik-div');
-      if(existing) existing.remove();
-      const el=document.createElement('div');
-      el.id='zadnji-urednik-div';
-      el.style.cssText='position:fixed;bottom:10px;right:10px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-muted);z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.15);max-width:280px';
-      el.innerHTML='✏️ Zadnja izmjena: <strong>'+zadnjiUrednik+'</strong>';
-      document.body.appendChild(el);
-      setTimeout(function(){el.style.transition='opacity 1s';el.style.opacity='0.4';},8000);
-    },500);
-  }
+  setTimeout(prikaziZadnjegUrednika, 500);
 });
+
+function prikaziZadnjegUrednika() {
+  var existing = document.getElementById('zadnji-urednik-div');
+  if (existing) existing.remove();
+  if (!ZADNJI_IZ_BAZE) {
+    if (!SUPA_IMA_ZADNJEG) console.warn('[ZADNJI] Stupac zadnji_urednik ne postoji u bazi - pokreni SQL iz uputa.');
+    return;
+  }
+  const el = document.createElement('div');
+  el.id = 'zadnji-urednik-div';
+  el.style.cssText = 'position:fixed;bottom:10px;right:10px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-muted);z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.15);max-width:280px';
+  el.innerHTML = '\u270F\uFE0F Zadnja izmjena: <strong>' + ZADNJI_IZ_BAZE + '</strong>';
+  document.body.appendChild(el);
+  setTimeout(function(){ el.style.transition='opacity 1s'; el.style.opacity='0.4'; }, 8000);
+}
 
 function showLoginScreen(){
   document.getElementById('login-screen').style.display='flex';
