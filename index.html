@@ -421,7 +421,19 @@ body {
 .print-header { display: none; }
 </style>
 <style id="gost-css">
+body.gost-mod .gantt-cell { pointer-events:none; cursor:default; }
 body.gost-mod [onclick*="addNote"],
+body.gost-mod [onclick*="archiveProj"],
+body.gost-mod [onclick*="tlArchiveProj"],
+body.gost-mod [onclick*="tlDeleteProj"],
+body.gost-mod [onclick*="restoreProj"],
+body.gost-mod [onclick*="deleteProjArch"],
+body.gost-mod [onclick*="openProjModal"],
+body.gost-mod [onclick*="openCatModal"],
+body.gost-mod [onclick*="startEditNote"],
+body.gost-mod [onclick*="setEditNoteColor"],
+body.gost-mod [onclick*="toggleGanttEdit"],
+body.gost-mod .add-note,
 body.gost-mod [onclick*="deleteNote"],
 body.gost-mod [onclick*="saveNote"],
 body.gost-mod [onclick*="addOrg"],
@@ -1196,18 +1208,31 @@ function save(){
     }
     // Spremi lokalno kao backup
     localStorage.setItem(STORE,JSON.stringify(payload));
-    // Spremi u Supabase (async, ne čekamo)
-    supaSave(payload).then(ok=>{
-      if(ok === 'sudar'){
-        upozoriNaSudar();
-      } else if(ok === 'nepoznato'){
-        toast('Nema veze s bazom - spremljeno samo lokalno');
-      } else if(!ok){
-        console.warn('Supabase save nije uspio, podaci su spremljeni lokalno.');
-        toast('Spremanje u bazu nije uspjelo');
-      }
-    });
+    if(_jeGostSigurno()){ console.log('[SUPA] Gost - ne spremam u bazu'); return; }
+    posaljiUBazu();
   }catch(e){}
+}
+// Spremanja idu jedno za drugim. Ako stigne novo spremanje dok prethodno jos traje,
+// posalje se tek kad prethodno zavrsi - inace se aplikacija "sudari" sama sa sobom.
+let _spremanjeTece=false, _spremiPonovno=false;
+function _jeGostSigurno(){ try{ return jeGost===true; }catch(e){ return false; } }
+function posaljiUBazu(){
+  if(_spremanjeTece){ _spremiPonovno=true; return; }
+  _spremanjeTece=true;
+  supaSave({orgs:allOrgs}).then(ok=>{
+    _spremanjeTece=false;
+    if(ok === 'sudar'){
+      _spremiPonovno=false;
+      upozoriNaSudar();
+      return;
+    } else if(ok === 'nepoznato'){
+      toast('Nema veze s bazom - spremljeno samo lokalno');
+    } else if(!ok){
+      console.warn('Supabase save nije uspio, podaci su spremljeni lokalno.');
+      toast('Spremanje u bazu nije uspjelo');
+    }
+    if(_spremiPonovno && ok === true){ _spremiPonovno=false; posaljiUBazu(); }
+  });
 }
 function renderOrgBar(){
   const bar=document.getElementById('org-bar');
@@ -1906,7 +1931,11 @@ function renderTimeline(){
     const colorObj=row.color==='own'?{color:row.ownColor||'#6c757d',label:row.ownLabel||'Vlastiti'}:(GANTT_COLORS.find(c=>c.id===row.color)||{color:'#4895ef',label:''});
     let cells='';
     for(let m=0;m<12;m++){
-      const filled=(row.months||[]).includes(m);
+      // Faza s datumima: mjeseci se racunaju iz datuma za prikazanu godinu.
+      // Faza bez datuma: koriste se rucno oznaceni mjeseci.
+      const imaDatume=!!(row.dateFrom||row.dateTo);
+      const filled=imaDatume ? datesRangeToMonths(row.dateFrom,row.dateTo,ganttYear).includes(m)
+                             : (row.months||[]).includes(m);
       // Calculate partial fill percentage if dates exist
       let fillStyle='';
       if(filled && (row.dateFrom||row.dateTo)){
@@ -1995,9 +2024,9 @@ function renderTimeline(){
           </div>
         </div>
         <div class="gantt-year-nav" style="margin-top:18px">
-          <button onclick="ganttYear--;recalcMonthsForYear(ganttProj);renderTimeline()">◀</button>
+          <button onclick="ganttYear--;renderTimeline()">◀</button>
           <span>${ganttYear}</span>
-          <button onclick="ganttYear++;recalcMonthsForYear(ganttProj);renderTimeline()">▶</button>
+          <button onclick="ganttYear++;renderTimeline()">▶</button>
         </div>
       </div>
 
@@ -2030,6 +2059,10 @@ function renderTimeline(){
 function toggleGanttCell(pid, ri, month){
   const rows=getGanttData(pid);
   if(!rows[ri])return;
+  if(rows[ri].dateFrom||rows[ri].dateTo){
+    toast('Ova faza ima datume - promijeni ih preko ✎ (uredi fazu).');
+    return;
+  }
   if(!rows[ri].months)rows[ri].months=[];
   const idx=rows[ri].months.indexOf(month);
   if(idx>=0) rows[ri].months.splice(idx,1);
@@ -2072,6 +2105,7 @@ function datesRangeToMonths(from, to, year){
 }
 
 function recalcMonthsForYear(pid){
+  return; // vise se ne koristi - mjeseci se racunaju pri prikazu, bez spremanja
   if(!pid) return;
   const rows=getGanttData(pid);
   rows.forEach(row=>{
@@ -2606,7 +2640,7 @@ window.addEventListener('DOMContentLoaded',async function(){
   await load();
   // NE pozivamo save() automatski - ne želimo prepisati Supabase podatke s lokalnim
   if (SUPA_NEDOSTUPNA) prikaziBazaMirovanje(); else sakrijBazaMirovanje();
-  if(!currentUser){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();jeGost=(sessionStorage.getItem('dso_gost')==='1');primijeniGostNacin();setPage(activePage||'pregled');}
+  if(!currentUser || sessionStorage.getItem('dso_prijava')!=='1'){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();jeGost=(sessionStorage.getItem('dso_gost')==='1');primijeniGostNacin();setPage(activePage||'pregled');}
   setTimeout(prikaziZadnjegUrednika, 500);
 });
 
@@ -2627,6 +2661,8 @@ function prikaziZadnjegUrednika() {
 
 function showLoginScreen(){
   document.getElementById('login-screen').style.display='flex';
+  var ni=document.getElementById('login-name-inp'); if(ni && !ni.value) ni.value=currentUser||'';
+  var pi=document.getElementById('login-pass-inp'); if(pi) pi.value='';
   setTimeout(()=>document.getElementById('login-name-inp').focus(),100);
 }
 const LOZINKA_UNOS = "Unos-GUSZBOI";
@@ -2637,6 +2673,7 @@ function submitLogin(){
   const pass=(document.getElementById('login-pass-inp')?.value||'');
   jeGost = (pass !== LOZINKA_UNOS);
   sessionStorage.setItem('dso_gost', jeGost?'1':'0');
+  sessionStorage.setItem('dso_prijava','1');
   currentUser=v;
   localStorage.setItem('dso_username',v);
   document.getElementById('login-screen').style.display='none';
@@ -2664,8 +2701,8 @@ function primijeniGostNacin(){
 }
 function updateAvatar(){const av=document.getElementById('user-avatar');if(av&&currentUser){av.textContent=currentUser.trim().charAt(0).toUpperCase();}}
 function changeUser(){
-  const v=prompt('Unesi ime:',currentUser);
-  if(v&&v.trim()){currentUser=v.trim();localStorage.setItem('dso_username',currentUser);document.getElementById('username-display').textContent=currentUser;updateAvatar();toast('Ime promijenjeno');}
+  // promjena korisnika ide kroz ekran za prijavu (ime + lozinka)
+  showLoginScreen();
 }
 
 // ── ANALIZA FAZA ──────────────────────────────────────────────
