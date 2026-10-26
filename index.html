@@ -110,18 +110,18 @@ body {
 }
 .org-bar {
   display: flex; gap: 0; border-bottom: 1px solid var(--border);
-  background: var(--surface); padding: 0 16px; flex-wrap: nowrap; overflow-x: auto;
+  background: var(--surface); padding: 0 10px; flex-wrap: wrap; overflow-x: visible;
   flex-shrink: 0;
 }
 .org-tab {
-  font-size: 12px; font-weight: 600; padding: 9px 16px; border: none;
+  font-size: 12px; font-weight: 600; padding: 9px 12px; border: none;
   background: none; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent;
   white-space: nowrap; transition: all .15s; font-family: 'DM Sans', sans-serif;
   letter-spacing: .04em; text-transform: uppercase;
 }
 .org-tab:hover { color: var(--text); }
 .org-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.org-tab.add { color: var(--text3); font-size: 16px; padding: 6px 12px; }
+.org-tab.add { color: var(--text3); font-size: 11px; padding: 9px 10px; text-transform: none; letter-spacing: 0; }
 .org-tab.add:hover { color: var(--accent); }
 .nav-section { padding: 0 12px; margin-bottom: 4px; }
 .pro-table { width:100%; border-collapse:collapse; margin-top:16px; font-size:13px; }
@@ -1252,7 +1252,7 @@ function renderOrgBar(){
   bar.innerHTML=orgs.map(o=>
     `<button class="org-tab ${o===activeOrg?'active':''}" onclick="switchOrg('${o}')">${o}</button>`
   ).join('')+
-  `<button class="org-tab add" onclick="addOrg()" title="Nova organizacija">+</button>`;
+  `<button class="org-tab add" onclick="addOrg()" title="Dodaj novi sektor">+ sektor</button>`;
 }
 function switchOrg(org){
   // Spremi trenutni org PRIJE promjene
@@ -1270,10 +1270,10 @@ function switchOrg(org){
   render();
 }
 function addOrg(){
-  const name=prompt('Naziv organizacije (npr. ZDRAVSTVO):');
+  const name=prompt('Naziv novog sektora (npr. ENERGETSKA OBNOVA):');
   if(!name||!name.trim())return;
   const key=name.trim().toUpperCase();
-  if(allOrgs[key]){alert('Organizacija već postoji!');return;}
+  if(allOrgs[key]){alert('Sektor već postoji!');return;}
   allOrgs[key]={};
   activeOrg=key;
   db=allOrgs[key];
@@ -1435,7 +1435,15 @@ function setPage(p){
   render();
 }
 
+// Kategorija OSTALO uvijek ide na kraj - premjesti kljuc na kraj objekta (redoslijed vrijedi svugdje)
+function ostaloNaKraj(o){
+  if(!o || !Array.isArray(o.OSTALO)) return;
+  const k=Object.keys(o).filter(x=>!x.startsWith('__'));
+  if(k[k.length-1]==='OSTALO') return;
+  const v=o.OSTALO; delete o.OSTALO; o.OSTALO=v;
+}
 function render(){
+  ostaloNaKraj(db);
   renderOrgBar();
   renderYearBar();
   document.querySelectorAll('#page-pregled .page-subtitle').forEach(e=>{e.textContent=activeYear==='SVE'?'Svi aktivni projekti - sve godine':'Aktivni projekti plana '+activeYear+'.';});
