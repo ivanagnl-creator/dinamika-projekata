@@ -1388,6 +1388,11 @@ function jeNastavak(p){
     && !['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p));
 }
 function vidljiv(p){ return uGodini(p) || jeNastavak(p); }
+// Kategorija se prikazuje u odabranoj godini ako ima projekata te godine; nova (prazna) kategorija vidi se uvijek.
+function katUGodini(c){
+  const ps = db[c] || [];
+  return activeYear === 'SVE' || ps.length === 0 || ps.some(p => vidljiv(p) || (p.archived && uGodini(p)));
+}
 function sveGodine(){
   const g = new Set([String(new Date().getFullYear()), activeYear !== 'SVE' ? activeYear : PODRAZUMIJEVANA_GODINA]);
   Object.keys(allOrgs || {}).forEach(o => {
@@ -1528,7 +1533,7 @@ function renderProjects(){
 
 function renderCatTabs(){
   const el=document.getElementById('cat-tabs');if(!el)return;
-  const cats=Object.keys(db).filter(k=>!k.startsWith('__'));
+  const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k])).filter(katUGodini);
   // Samo ako activeCat ne postoji u db prebaci na prvu dostupnu (ne ako je prazna!)
   if(!cats.includes(activeCat)){
     activeCat=cats[0]||'';
@@ -1774,7 +1779,7 @@ function deleteProj(id){
 // ── GRAFIKON ──
 function renderGrafikon(){
   charts.forEach(c=>{try{c.destroy();}catch(e){}});charts=[];
-  const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k]));
+  const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k])).filter(c=>activeYear==='SVE'||db[c].some(p=>!p.archived&&uGodini(p)));
   const proByCat=cats.map(c=>Math.round(db[c].filter(p=>!p.archived&&uGodini(p)).reduce((s,p)=>s+(p.pro||0),0)));
   const uogByCat=cats.map(c=>Math.round(db[c].filter(p=>!p.archived&&uGodini(p)).reduce((s,p)=>s+(p.uog||0),0)));
   const countByCat=cats.map(c=>db[c].filter(p=>!p.archived&&uGodini(p)).length);
@@ -2026,7 +2031,7 @@ function renderTimeline(){
   const el=document.getElementById('page-timeline');
   if(!el)return;
 
-  const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k]));
+  const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k])).filter(c=>activeYear==='SVE'||db[c].some(p=>!p.archived&&vidljiv(p)));
   if(!ganttCat||!cats.includes(ganttCat))ganttCat=cats[0]||'';
   const projs=(db[ganttCat]||[]).filter(p=>!p.archived&&vidljiv(p));
   if(!ganttProj||!projs.find(p=>p.id===ganttProj))ganttProj=projs[0]?.id||'';
@@ -2337,8 +2342,12 @@ function deleteUst(ust){
   toast('Ustanova '+ust+' obrisana');
 }
 function deleteCat(cat){
-  const count=(db[cat]||[]).filter(p=>!p.archived).length;
-  const msg=count>0?`Kategorija "${cat}" ima ${count} projekt(a). Stvarno obrisati kategoriju i sve projekte?`:`Obrisati kategoriju "${cat}"?`;
+  const svi=(db[cat]||[]);
+  const poGod={}; svi.forEach(p=>{const g=godProjekta(p)+'.'+(p.archived?' (arhiv.)':''); poGod[g]=(poGod[g]||0)+1;});
+  const opis=Object.entries(poGod).sort().map(([g,n])=>g+': '+n).join(', ');
+  const msg=svi.length>0
+    ?`Kategorija "${cat}" ima ${svi.length} projekt(a) u SVIM godinama (${opis}).\n\nBrisanjem se TRAJNO brišu svi ti projekti, s bilješkama i timelineom.\n\nAko je kategorija samo prazna u jednoj godini, ne briši je - u toj se godini ionako ne prikazuje.\n\nStvarno obrisati?`
+    :`Obrisati kategoriju "${cat}"?`;
   if(!confirm(msg))return;
   delete db[cat];
   const cats=Object.keys(db).filter(k=>!k.startsWith('__'));
