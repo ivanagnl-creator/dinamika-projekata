@@ -419,6 +419,15 @@ body {
   .print-header { display: block !important; }
 }
 .print-header { display: none; }
+
+.year-bar{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:10px 14px 6px}
+.year-lbl{font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-right:4px}
+.year-tab{border:1px solid var(--border2);background:var(--surface);color:var(--text2);border-radius:14px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.year-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.year-tab.add{padding:3px 8px}
+.year-nast{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--text3);width:100%;margin-top:4px;cursor:pointer}
+.nast-badge{font-size:10.5px;font-weight:600;color:#8a5a00;background:#fff3cd;border-radius:10px;padding:1px 8px}
+.god-badge{font-size:10.5px;font-weight:600;color:var(--text3);border:1px solid var(--border2);border-radius:10px;padding:0 7px}
 </style>
 <style id="gost-css">
 body.gost-mod .gantt-cell { pointer-events:none; cursor:default; }
@@ -437,6 +446,7 @@ body.gost-mod .add-note,
 body.gost-mod [onclick*="deleteNote"],
 body.gost-mod [onclick*="saveNote"],
 body.gost-mod [onclick*="addOrg"],
+body.gost-mod [onclick*="dodajGodinu"],
 body.gost-mod [onclick*="addGanttRow"],
 body.gost-mod [onclick*="deleteGanttRow"],
 body.gost-mod [onclick*="saveGanttEdit"],
@@ -475,6 +485,7 @@ body.gost-mod #new-note-inp {
       </div>
     </div>
     <div class="org-bar" id="org-bar"><button class="org-tab active" onclick="switchOrg('SOCIJALA')">SOCIJALA</button><button class="org-tab " onclick="switchOrg('ZDRAVSTVO')">ZDRAVSTVO</button><button class="org-tab add" onclick="addOrg()" title="Nova organizacija">+</button></div>
+    <div class="year-bar" id="year-bar"></div>
 
     <div class="nav-section">
       <div class="nav-label">Pogledi</div>
@@ -1336,7 +1347,82 @@ function sbadge(s){
   return`<span class="badge ${m[s]||'b-gray'}">${l[s]||s}</span>`;
 }
 
-function allActive(){return Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).flatMap(([cat,ps])=>ps.filter(p=>!p.archived&&!['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p))).map(p=>({...p,cat})));}
+
+// ── JEDNOKRATNI UVOZ PLANA ZA 2027. (iz tablice DINAMIKA_PROJEKATA_DSO_2027) ──
+// Pokrece se samo kod korisnika za unos, nakon uspjesnog ucitavanja iz baze.
+// Ne dira postojece projekte; projekt s istim id-em se ne dodaje dvaput.
+// Nakon uvoza u organizaciji ostaje oznaka __uvoz_plan2027 pa se uvoz vise nikad ne ponavlja.
+const PLAN_2027 = {"org": "SOCIJALA", "kategorije": {"VERTIKALE": [{"id": "g27-vertikale-centar", "u": "CENTAR", "ev": null, "uog": null, "pro": 101500.0, "prj": "KRITOVAC", "ndz": null, "izv": null, "brKup": "8 (2xB2)", "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "", "t": "JEDNOSTAVNA NABAVA!", "c": "red", "u": ""}, {"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-medvescak", "u": "MEDVEŠČAK", "ev": null, "uog": null, "pro": 140000.0, "prj": "BOLANČA", "ndz": null, "izv": null, "brKup": "14 (tip A)", "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-ksaver", "u": "KSAVER", "ev": null, "uog": null, "pro": 225000.0, "prj": "PRO VILA", "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-tresnjevka", "u": "TREŠNJEVKA", "ev": null, "uog": null, "pro": 150000.0, "prj": "MAŠINOPROJEKT", "ndz": null, "izv": null, "brKup": "15 (tip A 10 + tip B 5)", "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}, {"d": "", "t": "Sjednica 28.10.2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-sv-josip", "u": "SV. JOSIP", "ev": null, "uog": null, "pro": 153000.0, "prj": "ARHIKORD", "ndz": null, "izv": null, "brKup": "4 + 4 sobe", "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-pescenica", "u": "PEŠČENICA", "ev": null, "uog": null, "pro": 140000.0, "prj": "BOLANČA", "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}, {"d": "", "t": "Sjednica 27.10.2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-park", "u": "PARK", "ev": null, "uog": null, "pro": 128000.0, "prj": "KRITOVAC", "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-trnje", "u": "TRNJE", "ev": null, "uog": null, "pro": 170000.0, "prj": "KRITOVAC", "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}, {"d": "", "t": "Sjednica 29.10.2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-sv-ana", "u": "SV.ANA", "ev": null, "uog": null, "pro": 150000.0, "prj": "KRITOVAC", "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}, {"d": "", "t": "Sjednica 26.10.2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-vertikale-dubrava", "u": "DUBRAVA", "ev": null, "uog": null, "pro": null, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "", "t": "17.09. zvala ravnateljicu da provjerim status izvršenja (ne javlja se)", "c": "blue", "u": ""}], "god": "2027"}], "KLIME": [{"id": "g27-klime-dubrava", "u": "DUBRAVA", "ev": null, "uog": null, "pro": 368800.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-klime-medvescak", "u": "MEDVEŠČAK", "ev": null, "uog": null, "pro": 896000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "poslana uputa za izmjenu plana nabave kako bi se JN pokrenula u 2026.", "c": "blue", "u": ""}], "god": "2027"}, {"id": "g27-klime-ksaver", "u": "KSAVER", "ev": null, "uog": null, "pro": 859000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [{"d": "22.10.2026.", "t": "projektant potvrdio da može završiti projekt do 01.12. ako do 29.10. dobije odgovor na idejni projekt", "c": "blue", "u": ""}], "god": "2027"}], "DIZALA": [{"id": "g27-dizala-ksaver", "u": "KSAVER", "ev": null, "uog": null, "pro": 109500.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-dizala-medvescak", "u": "MEDVEŠČAK", "ev": null, "uog": null, "pro": 88000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-dizala-pescenica", "u": "PEŠČENICA", "ev": null, "uog": null, "pro": 82000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-dizala-sv-josip", "u": "SV. JOSIP", "ev": null, "uog": null, "pro": 88000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-dizala-trnje", "u": "TRNJE", "ev": null, "uog": null, "pro": 82000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-dizala-maksimir", "u": "MAKSIMIR", "ev": null, "uog": null, "pro": 88000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}], "VIDEONADZOR": [{"id": "g27-videonadzor-dubrava", "u": "DUBRAVA", "ev": null, "uog": null, "pro": 137000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-videonadzor-pescenica", "u": "PEŠČENICA", "ev": null, "uog": null, "pro": 260000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-videonadzor-park-lascina", "u": "PARK - LAŠČINA", "ev": null, "uog": null, "pro": 80000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-videonadzor-sv-josip-db", "u": "SV. JOSIP - DB", "ev": null, "uog": null, "pro": 60000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}], "OSTALO": [{"id": "g27-ostalo-tresnjevka-prosirenje-kapaciteta", "u": "TREŠNJEVKA — PROŠIRENJE KAPACITETA", "ev": null, "uog": null, "pro": 490000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-ostalo-medvescak-uvoenje-sprinklera", "u": "MEDVEŠČAK — UVOĐENJE SPRINKLERA", "ev": null, "uog": null, "pro": 200000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-ostalo-ksaver-ureenje-1-kat-c", "u": "KSAVER — UREĐENJE 1. KAT C", "ev": null, "uog": null, "pro": 145000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-ostalo-pescenica-sanacija-krova-kuhinja", "u": "PEŠČENICA — SANACIJA KROVA - KUHINJA", "ev": null, "uog": null, "pro": 75000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-ostalo-medvescak-projektiranje-kuhinje", "u": "MEDVEŠČAK — PROJEKTIRANJE KUHINJE", "ev": null, "uog": null, "pro": 25500.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-ostalo-centar-projektiranje-kuhinje", "u": "CENTAR — PROJEKTIRANJE KUHINJE", "ev": null, "uog": null, "pro": 25500.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}, {"id": "g27-ostalo-sv-josip-novelacija-p-d-alzheimer", "u": "SV. JOSIP — NOVELACIJA P.D. - ALZHEIMER", "ev": null, "uog": null, "pro": 10000.0, "prj": null, "ndz": null, "izv": null, "brKup": null, "datNarudz": null, "rok": null, "datPrimitka": null, "predvrijeme": null, "pzNadzor": null, "nadzorUg": null, "so": null, "tlStart": null, "tlRok": null, "tlEnd": null, "archived": false, "openNotes": false, "notes": [], "god": "2027"}]}};
+function uveziPlan2027(){
+  try{
+    if(_jeGostSigurno()) return;
+    if(SUPA_NEDOSTUPNA || SUPA_VERZIJA===null) { console.warn('[UVOZ 2027] Baza nije ucitana - uvoz preskocen'); return; }
+    const o=allOrgs[PLAN_2027.org]; if(!o) return;
+    if(o.__uvoz_plan2027) return;
+    let n=0;
+    Object.entries(PLAN_2027.kategorije).forEach(([cat,ps])=>{
+      if(!Array.isArray(o[cat])) o[cat]=[];
+      ps.forEach(p=>{ if(!o[cat].some(x=>x.id===p.id)){ o[cat].push(JSON.parse(JSON.stringify(p))); n++; } });
+    });
+    o.__uvoz_plan2027=new Date().toISOString();
+    if(!Array.isArray(o.__godine)) o.__godine=[];
+    if(!o.__godine.includes('2027')) o.__godine.push('2027');
+    if(activeOrg===PLAN_2027.org) db=o;
+    save(); render();
+    console.log('[UVOZ 2027] dodano projekata:', n);
+    if(n) toast('Uvezeno '+n+' projekata plana za 2027.');
+  }catch(e){ console.error('[UVOZ 2027]', e); }
+}
+
+// ── GODINE ─────────────────────────────────────────────────────
+// Svaki projekt ima godinu plana (p.god). Projekti bez nje su iz 2026.
+const PODRAZUMIJEVANA_GODINA = '2026';
+let activeYear = (function(){ try { return sessionStorage.getItem('DP_GOD') || String(new Date().getFullYear()); } catch(e) { return String(new Date().getFullYear()); } })();
+let prikaziNastavke = false;   // nastavci iskljuceni - svaka godina prikazuje samo svoje projekte
+function godProjekta(p){ return String(p.god || PODRAZUMIJEVANA_GODINA); }
+// projekt planiran u odabranoj godini (za brojke i proračun)
+function uGodini(p){ return activeYear === 'SVE' || godProjekta(p) === activeYear; }
+// nedovršeni projekt iz ranije godine koji se nastavlja u odabranoj godini
+function jeNastavak(p){
+  return prikaziNastavke && activeYear !== 'SVE' && +godProjekta(p) < +activeYear && !p.archived
+    && !['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p));
+}
+function vidljiv(p){ return uGodini(p) || jeNastavak(p); }
+function sveGodine(){
+  const g = new Set([String(new Date().getFullYear()), activeYear !== 'SVE' ? activeYear : PODRAZUMIJEVANA_GODINA]);
+  Object.keys(allOrgs || {}).forEach(o => {
+    const d = allOrgs[o] || {};
+    Object.keys(d).filter(k => !k.startsWith('__') && Array.isArray(d[k])).forEach(k => d[k].forEach(p => g.add(godProjekta(p))));
+    (d.__godine || []).forEach(x => g.add(String(x)));
+    (d.__proracun || []).forEach(x => x && x.god && g.add(String(x.god)));
+  });
+  return [...g].filter(x => /^20\d\d$/.test(x)).sort();
+}
+function setYear(y){
+  activeYear = y;
+  try { sessionStorage.setItem('DP_GOD', y); } catch(e) {}
+  render();
+}
+function dodajGodinu(){
+  const g = sveGodine();
+  const pred = String((+g[g.length - 1] || new Date().getFullYear()) + 1);
+  const v = prompt('Dodaj godinu plana:', pred);
+  if (!v) return;
+  const y = (String(v).match(/20\d\d/) || [])[0];
+  if (!y) { alert('Upiši godinu, npr. ' + pred); return; }
+  if (!db.__godine) db.__godine = [];
+  if (!db.__godine.includes(y)) db.__godine.push(y);
+  save(); setYear(y);
+}
+function renderYearBar(){
+  const el = document.getElementById('year-bar'); if (!el) return;
+  const g = sveGodine();
+  el.innerHTML = `<span class="year-lbl">Godina</span>` + g.map(y => `<button class="year-tab ${y === activeYear ? 'active' : ''}" onclick="setYear('${y}')">${y}</button>`).join('') +
+    `<button class="year-tab ${activeYear === 'SVE' ? 'active' : ''}" onclick="setYear('SVE')" title="Sve godine">Sve</button>` +
+    `<button class="year-tab add" onclick="dodajGodinu()" title="Dodaj novu godinu">+</button>`;
+}
+
+function allActive(){return Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).flatMap(([cat,ps])=>ps.filter(p=>!p.archived&&uGodini(p)&&!['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p))).map(p=>({...p,cat})));}
 
 // ── PAGES ──
 function setPage(p){
@@ -1351,6 +1437,10 @@ function setPage(p){
 
 function render(){
   renderOrgBar();
+  renderYearBar();
+  document.querySelectorAll('#page-pregled .page-subtitle').forEach(e=>{e.textContent=activeYear==='SVE'?'Svi aktivni projekti - sve godine':'Aktivni projekti plana '+activeYear+'.';});
+  const _ln=document.getElementById('logo-org-name');
+  if(_ln)_ln.textContent='GUSZBOI · '+activeOrg+(activeYear!=='SVE'?' · '+activeYear+'.':' · sve godine');
   if(activePage==='pregled')renderPregled();
   else if(activePage==='projekti')renderProjects();
   else if(activePage==='grafikon')renderGrafikon();
@@ -1373,7 +1463,8 @@ function renderPregled(){
   const ukRaz=ukPro-ukUog;
   const razColor=ukRaz>=0?'#2e7d32':'#c62828';
   // poništeni/obustavljeni
-  const allNeakt=Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).flatMap(([cat,ps])=>ps.filter(p=>!p.archived&&['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p))).map(p=>({...p,cat})));
+  const allNeakt=Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).flatMap(([cat,ps])=>ps.filter(p=>!p.archived&&uGodini(p)&&['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p))).map(p=>({...p,cat})));
+  const nNast=Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).reduce((n,[c,ps])=>n+ps.filter(jeNastavak).length,0);
   const nPon=allNeakt.filter(p=>getStatus(p)==='PONIŠTENO').length;
   const nObu=allNeakt.filter(p=>getStatus(p)==='OBUSTAVLJENO').length;
   const ukupnoSvi=total+allNeakt.length;
@@ -1385,17 +1476,20 @@ function renderPregled(){
     <div class="stat-card"><div class="stat-label">Poništeno / obustavljeno</div><div class="stat-value" style="color:#c62828">${allNeakt.length}</div></div>
     <div class="stat-card"><div class="stat-label">Proračun projekata</div><div class="stat-value sm">${fmt(ukPro)}</div></div>
     <div class="stat-card"><div class="stat-label">Ugovoreno €</div><div class="stat-value sm">${fmt(ukUog)}</div></div>
-    <div class="stat-card"><div class="stat-label">Razlika (proračun − ugovoreno)</div><div class="stat-value sm" style="color:${razColor}">${ukUog>0?fmt(ukRaz):'—'}</div></div>`;
+    <div class="stat-card"><div class="stat-label">Razlika (proračun − ugovoreno)</div><div class="stat-value sm" style="color:${razColor}">${ukUog>0?fmt(ukRaz):'—'}</div></div>
+    ${nNast?`<div class="stat-card" title="Nedovršeni projekti iz ranijih godina - ne ulaze u brojke ni proračun ove godine"><div class="stat-label">Nastavci iz ranijih godina</div><div class="stat-value" style="color:#8a5a00">${nNast}</div></div>`:''}`;
   const ovHtml=Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).map(([cat,ps])=>{
-    const active=ps.filter(p=>!p.archived&&!['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p)));
-    const neakt=ps.filter(p=>!p.archived&&['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p)));
+    const active=ps.filter(p=>!p.archived&&uGodini(p)&&!['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p)));
+    const neakt=ps.filter(p=>!p.archived&&uGodini(p)&&['PONIŠTENO','OBUSTAVLJENO'].includes(getStatus(p)));
+    const nastC=ps.filter(jeNastavak).length;
+    if(!active.length&&!neakt.length&&!nastC&&activeYear!=='SVE') return '';   // kategorija bez projekata u ovoj godini
     const uogC=active.filter(p=>['RADOVI/UGOVORENO','UGOVARANJE'].includes(getStatus(p))).length;
     const nabC=active.filter(p=>getStatus(p)==='NABAVA U TIJEKU').length;
     const proS=active.reduce((s,p)=>s+(p.pro||0),0);
     const uogS=active.reduce((s,p)=>s+(p.uog||0),0);
     const pct=proS>0?Math.min(Math.round(uogS/proS*100),100):0;
     return`<div class="ov-card" onclick="setCat('${cat}');setPage('projekti')">
-      <div class="ov-cat-name">${cat} <span style="font-size:11px;color:var(--text3);font-weight:400">${active.length} proj.</span>${neakt.length>0?`<span style="font-size:10px;color:#c62828;margin-left:6px">${neakt.length} pauz.</span>`:''}</div>
+      <div class="ov-cat-name">${cat} <span style="font-size:11px;color:var(--text3);font-weight:400">${active.length} proj.</span>${neakt.length>0?`<span style="font-size:10px;color:#c62828;margin-left:6px">${neakt.length} pauz.</span>`:''}${nastC>0?`<span style="font-size:10px;color:#8a5a00;margin-left:6px">+${nastC} nastavak</span>`:''}</div>
       <div class="ov-nums">
         <span class="ok">${uogC} ugovoreno</span>
         <span>${nabC} nabava</span>
@@ -1441,7 +1535,7 @@ function renderCatTabs(){
 
 function renderUstTabs(){
   const el=document.getElementById('ust-tabs');if(!el)return;
-  const usts=['SVE',...new Set((db[activeCat]||[]).filter(p=>!p.archived).map(p=>p.u))];
+  const usts=['SVE',...new Set((db[activeCat]||[]).filter(p=>!p.archived&&vidljiv(p)).map(p=>p.u))];
   el.innerHTML=usts.map(u=>u==='SVE'
     ? `<button class="utab ${u===activeUst?'active':''}" onclick="setUst(${JSON.stringify(u)})">${u}</button>`
     : `<span style="position:relative;display:inline-flex;align-items:center">
@@ -1460,7 +1554,7 @@ function scrollToUst(u){
   // Ako je activeUst filtar aktivan, resetiraj na SVE
   if(activeUst!=='SVE'){activeUst='SVE';renderUstTabs();}
   // Nađi projekt s tim imenom
-  const proj=(db[activeCat]||[]).find(p=>p.u===u&&!p.archived);
+  const proj=(db[activeCat]||[]).find(p=>p.u===u&&!p.archived&&vidljiv(p));
   if(!proj)return;
   const card=document.getElementById('card-'+proj.id);
   if(card){
@@ -1475,24 +1569,27 @@ function scrollToUst(u){
 function getFiltered(){
   // Search in activeCat first, then all cats for 'zatvor'-like projects
   if(!Array.isArray(db[activeCat])) return [];
-  let ps=db[activeCat].filter(p=>!p.archived&&(activeUst==='SVE'||p.u===activeUst));
+  let ps=db[activeCat].filter(p=>!p.archived&&vidljiv(p)&&(activeUst==='SVE'||p.u===activeUst));
   if(searchQ.trim()){const q=searchQ.toLowerCase();ps=ps.filter(p=>(p.u||'').toLowerCase().includes(q)||(p.prj||'').toLowerCase().includes(q)||(p.ev||'').toLowerCase().includes(q)||(p.ndz||'').toLowerCase().includes(q)||(p.izv||'').toLowerCase().includes(q)||p.notes.some(n=>n.t.toLowerCase().includes(q)));}
   if(filterStatus!=='SVE')ps=ps.filter(p=>getStatus(p)===filterStatus);
   if(sortBy==='naziv')ps=[...ps].sort((a,b)=>a.u.localeCompare(b.u,'hr'));
   else if(sortBy==='proracun')ps=[...ps].sort((a,b)=>(b.pro||0)-(a.pro||0));
   else if(sortBy==='status'){const ord={'RADOVI/UGOVORENO':0,'UGOVARANJE':1,'NABAVA U TIJEKU':2,'PRIPREMA JN':3,'PRIPREMA':4,'PONIŠTENO':5,'OBUSTAVLJENO':6};ps=[...ps].sort((a,b)=>(ord[getStatus(a)]??9)-(ord[getStatus(b)]??9));}
-  return ps;
+  // projekti odabrane godine prvi, nastavci iz ranijih godina ispod
+  return [...ps.filter(p=>!jeNastavak(p)), ...ps.filter(p=>jeNastavak(p))];
 }
 
 function renderProjStats(){
   const el=document.getElementById('pj-stats');if(!el)return;
-  const ps=getFiltered();
+  const svi=getFiltered();
+  const ps=svi.filter(uGodini);          // nastavci ne ulaze u brojke i proračun ove godine
+  const nNast=svi.length-ps.length;
   const uog=ps.filter(p=>['RADOVI/UGOVORENO','UGOVARANJE'].includes(getStatus(p))).length;
   const nab=ps.filter(p=>getStatus(p)==='NABAVA U TIJEKU').length;
   const ukPro=ps.reduce((s,p)=>s+(p.pro||0),0);
   const ukUog=ps.reduce((s,p)=>s+(p.uog||0),0);
   el.innerHTML=`
-    <div class="stat-card"><div class="stat-label">Projekata</div><div class="stat-value">${ps.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Projekata${nNast?` <span style="color:#8a5a00">(+${nNast} nastavak)</span>`:''}</div><div class="stat-value">${ps.length}</div></div>
     <div class="stat-card"><div class="stat-label">Ugovoreno</div><div class="stat-value" style="color:var(--success)">${uog}</div></div>
     <div class="stat-card"><div class="stat-label">Nabava</div><div class="stat-value" style="color:var(--warning)">${nab}</div></div>
     <div class="stat-card"><div class="stat-label">Proračun</div><div class="stat-value sm">${fmt(ukPro)}</div></div>
@@ -1503,14 +1600,15 @@ function renderCards(){
   const el=document.getElementById('proj-cards');if(!el)return;
   const ps=getFiltered();
   if(!ps.length){el.innerHTML=`<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg><div>Nema projekata za odabrane filtere.</div></div>`;return;}
-  el.innerHTML=ps.map(p=>{
+  el.innerHTML=ps.map((p,pi)=>{
     const st=getStatus(p);
+    const nastNaslov=(jeNastavak(p)&&(pi===0||!jeNastavak(ps[pi-1])))?`<div style="margin:22px 0 8px;font-size:13px;font-weight:700;color:#8a5a00">↪ Nastavci iz ranijih godina (${ps.filter(jeNastavak).length}) <span style="font-weight:400;color:var(--text3);font-size:12px">— nedovršeni projekti; ne ulaze u brojke ni proračun ${activeYear}.</span></div>`:'';
     const pct=p.uog&&p.pro?Math.round(p.uog/p.pro*100):null;
     const last=p.notes.length?p.notes[p.notes.length-1]:null;
-    return`<div class="proj-card" id="card-${p.id}">
+    return nastNaslov+`<div class="proj-card" id="card-${p.id}">
       <div class="card-head">
         <div class="card-left">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="card-title">${p.u}</span>${sbadge(st)}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="card-title">${p.u}</span>${sbadge(st)}${jeNastavak(p)?`<span class="nast-badge" title="Projekt planiran u ${godProjekta(p)}., nastavlja se">↪ nastavak iz ${godProjekta(p)}.</span>`:''}${activeYear==='SVE'?`<span class="god-badge">${godProjekta(p)}.</span>`:''}</div>
           <div class="card-sub">${p.ev||'bez ev. broja'} &middot; ${p.prj||'—'}</div>
         </div>
         <div class="card-acts">
@@ -1669,9 +1767,9 @@ function deleteProj(id){
 function renderGrafikon(){
   charts.forEach(c=>{try{c.destroy();}catch(e){}});charts=[];
   const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k]));
-  const proByCat=cats.map(c=>Math.round(db[c].filter(p=>!p.archived).reduce((s,p)=>s+(p.pro||0),0)));
-  const uogByCat=cats.map(c=>Math.round(db[c].filter(p=>!p.archived).reduce((s,p)=>s+(p.uog||0),0)));
-  const countByCat=cats.map(c=>db[c].filter(p=>!p.archived).length);
+  const proByCat=cats.map(c=>Math.round(db[c].filter(p=>!p.archived&&uGodini(p)).reduce((s,p)=>s+(p.pro||0),0)));
+  const uogByCat=cats.map(c=>Math.round(db[c].filter(p=>!p.archived&&uGodini(p)).reduce((s,p)=>s+(p.uog||0),0)));
+  const countByCat=cats.map(c=>db[c].filter(p=>!p.archived&&uGodini(p)).length);
   const statusCounts={};
   allActive().forEach(p=>{const s=getStatus(p);statusCounts[s]=(statusCounts[s]||0)+1;});
   const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -1785,7 +1883,7 @@ function calcYearTotals(god){
     if(!Array.isArray(db[cat]))return;
     db[cat].forEach(p=>{
       if(p.archived)return;
-      // filter by year: check if any note has the year, or just sum all
+      if(god!==undefined && godProjekta(p)!==String(god))return;   // samo projekti te godine
       if(p.pro) sumPro+=Number(p.pro)||0;
       if(p.uog) sumUog+=Number(p.uog)||0;
     });
@@ -1797,14 +1895,23 @@ function renderProracun(){
   const el=document.getElementById('page-proracun');
   const store=getProracunStore();
 
-  // Calc project totals per year (all projects, no year filter for now)
-  const {sumPro, sumUog}=calcYearTotals();
+  // Godine: upisani proračuni + godine u kojima postoje projekti ove organizacije
+  const godProj=new Set();
+  Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k])).forEach(k=>db[k].forEach(p=>godProj.add(+godProjekta(p))));
+  (db.__godine||[]).forEach(y=>godProj.add(+y));
+  const sveG=[...store.map(g=>({god:+g.god,iznos:g.iznos,upisan:true})),
+    ...[...godProj].filter(y=>!store.some(g=>+g.god===y)).map(y=>({god:y,iznos:null,upisan:false}))];
 
   let rows='';
-  if(store.length===0){
+  if(sveG.length===0){
     rows=`<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Nema unesenih godina. Dodaj prvu godinu ispod.</td></tr>`;
   } else {
-    store.slice().sort((a,b)=>b.god-a.god).forEach(g=>{
+    sveG.sort((a,b)=>b.god-a.god).forEach(g=>{
+      const {sumPro, sumUog}=calcYearTotals(g.god);   // samo projekti te godine
+      if(!g.upisan){
+        rows+=`<tr><td class="yr">${g.god}</td><td class="num" style="color:var(--text3)">nije upisan</td><td class="num">${fmtEur(sumPro)}</td><td class="num">${fmtEur(sumUog)}</td><td style="color:var(--text3)">—</td><td></td></tr>`;
+        return;
+      }
       const dodij=Number(g.iznos)||0;
       const raz=dodij-sumUog;
       const razClass=raz>=0?'pos':'neg';
@@ -1913,7 +2020,7 @@ function renderTimeline(){
 
   const cats=Object.keys(db).filter(k=>!k.startsWith('__')&&Array.isArray(db[k]));
   if(!ganttCat||!cats.includes(ganttCat))ganttCat=cats[0]||'';
-  const projs=(db[ganttCat]||[]).filter(p=>!p.archived);
+  const projs=(db[ganttCat]||[]).filter(p=>!p.archived&&vidljiv(p));
   if(!ganttProj||!projs.find(p=>p.id===ganttProj))ganttProj=projs[0]?.id||'';
 
   const catOpts=cats.map(c=>`<option value="${c}" ${c===ganttCat?'selected':''}>${c}</option>`).join('');
@@ -2175,14 +2282,14 @@ function deleteGanttRow(pid, ri){
 }
 
 function renderArhiva(){
-  const archived=Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).flatMap(([cat,ps])=>ps.filter(p=>p.archived).map(p=>({...p,cat})));
+  const archived=Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k])).flatMap(([cat,ps])=>ps.filter(p=>p.archived&&uGodini(p)).map(p=>({...p,cat})));
   const el=document.getElementById('arch-content');
   if(!archived.length){el.innerHTML=`<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg><div>Arhiva je prazna.</div><div style="font-size:11px;margin-top:4px">Arhivirani projekti prikazuju se ovdje.</div></div>`;return;}
   el.innerHTML=`<div class="arch-count">${archived.length} arhiviranih projekata</div>`+
   archived.map(p=>`<div class="proj-card archived">
     <div class="card-head">
       <div class="card-left">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="card-title">${p.u}</span><span style="font-size:11px;color:var(--text3)">${p.cat}</span>${sbadge('ARHIVIRANO')}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="card-title">${p.u}</span><span style="font-size:11px;color:var(--text3)">${p.cat}</span>${sbadge('ARHIVIRANO')}<span class="god-badge">${godProjekta(p)}.</span></div>
         <div class="card-sub">${p.ev||'bez ev. broja'} &middot; ${p.prj||'—'}</div>
       </div>
       <div class="card-acts">
@@ -2246,6 +2353,7 @@ function openProjModal(id){
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('modal-body').innerHTML=`<h3>${p?'Uredi projekt':(activeCat?'Nova ustanova — '+activeCat:'Nova ustanova')}</h3>
     <div class="form-row"><label>Naziv ustanove</label><input type="text" id="f-u" value="${p?p.u:''}"></div>
+    <div class="form-row"><label>Godina plana</label><select id="f-god">${(()=>{const g=sveGodine();const v=p?godProjekta(p):(activeYear==='SVE'?String(new Date().getFullYear()):activeYear);if(!g.includes(v))g.push(v);return g.sort().map(y=>`<option value="${y}" ${y===v?'selected':''}>${y}.</option>`).join('');})()}</select></div>
     <div class="form-row"><label>Evidencijski broj nabave</label><input type="text" id="f-ev" value="${p&&p.ev?p.ev:''}"></div>
     <div class="form-2col">
       <div class="form-row"><label>Proračun (€)</label><input type="text" id="f-pro" value="${p&&p.pro?p.pro:''}" placeholder="npr. 82325,00" inputmode="decimal"></div>
@@ -2310,7 +2418,7 @@ function saveProj(){
   const u=document.getElementById('f-u').value.trim();if(!u)return;
   const moveTo=document.getElementById('f-move-cat')?document.getElementById('f-move-cat').value:'';
   const finalCat=moveTo||activeCat;
-  const existing=editingId?db[activeCat].find(x=>x.id===editingId):null;const data={u,ev:document.getElementById('f-ev').value.trim()||null,pro:parseEur(document.getElementById('f-pro').value)||null,uog:parseEur(document.getElementById('f-uog').value)||null,prj:document.getElementById('f-prj').value.trim()||null,ndz:document.getElementById('f-ndz').value.trim()||null,izv:document.getElementById('f-izv').value.trim()||null,predvrijeme:document.getElementById('f-predvrijeme').value.trim()||null,so:document.getElementById('f-so').value||null,datNarudz:document.getElementById('f-datNarudz').value.trim()||null,rok:document.getElementById('f-rok').value.trim()||null,datPrimitka:document.getElementById('f-datPrimitka').value.trim()||null,brKup:finalCat==='VERTIKALE'?(document.getElementById('f-brKup')?document.getElementById('f-brKup').value.trim()||null:null):null,pzNadzor:document.getElementById('f-pzNadzor').value.trim()||null,nadzorUg:document.getElementById('f-nadzorUg').value.trim()||null,tlStart:existing?.tlStart||null,tlRok:existing?.tlRok||null,tlEnd:existing?.tlEnd||null};
+  const existing=editingId?db[activeCat].find(x=>x.id===editingId):null;const data={u,ev:document.getElementById('f-ev').value.trim()||null,pro:parseEur(document.getElementById('f-pro').value)||null,uog:parseEur(document.getElementById('f-uog').value)||null,prj:document.getElementById('f-prj').value.trim()||null,ndz:document.getElementById('f-ndz').value.trim()||null,izv:document.getElementById('f-izv').value.trim()||null,predvrijeme:document.getElementById('f-predvrijeme').value.trim()||null,so:document.getElementById('f-so').value||null,datNarudz:document.getElementById('f-datNarudz').value.trim()||null,rok:document.getElementById('f-rok').value.trim()||null,datPrimitka:document.getElementById('f-datPrimitka').value.trim()||null,brKup:finalCat==='VERTIKALE'?(document.getElementById('f-brKup')?document.getElementById('f-brKup').value.trim()||null:null):null,pzNadzor:document.getElementById('f-pzNadzor').value.trim()||null,nadzorUg:document.getElementById('f-nadzorUg').value.trim()||null,tlStart:existing?.tlStart||null,tlRok:existing?.tlRok||null,tlEnd:existing?.tlEnd||null,god:(document.getElementById('f-god')?.value)||(existing?godProjekta(existing):(activeYear==='SVE'?String(new Date().getFullYear()):activeYear))};
   if(!Array.isArray(db[activeCat]))db[activeCat]=[];
   if(editingId){
     const p=db[activeCat].find(x=>x.id===editingId);
@@ -2507,7 +2615,7 @@ async function exportExcel(){
   }
 
   for(const[catName,projects] of Object.entries(db).filter(([k])=>!k.startsWith('__')&&Array.isArray(db[k]))){
-    const active=projects.filter(p=>!p.archived);
+    const active=[...projects.filter(p=>!p.archived&&uGodini(p)), ...projects.filter(p=>!p.archived&&jeNastavak(p))];   // prvo projekti godine, pa nastavci
     const n=active.length;
     if(!n) continue;
     const maxNotes=Math.max(0,...active.map(p=>p.notes.length));
@@ -2535,6 +2643,8 @@ async function exportExcel(){
     active.forEach((p,i)=>{
       let lbl=p.u;
       if(p.so==='OBUSTAVLJENO') lbl+='\nOBUSTAVLJENO';
+      if(jeNastavak(p)) lbl+='\n(nastavak iz '+godProjekta(p)+'.)';
+      else if(activeYear==='SVE') lbl+='\n('+godProjekta(p)+'.)';
       applyCell(r0.getCell(i+2),lbl,{bold:true,sz:11,fg:COL.hdrFg,bgArgb:COL.hdrBg,brd:borderHdr,align:'center'});
     });
 
@@ -2543,7 +2653,7 @@ async function exportExcel(){
       // [oznaka, vrijednosti_fn, opcije_oznake, opcije_vrijednosti]
       ['Evidencijski broj nabave', p=>p.ev||'', {},{bold:false}],
       ['Ugovorena vrijednost s PDVom', p=>p.uog||'', {},{numFmt:'#,##0.00',fg:COL.numFg,bold:false}],
-      ['Proračun 2026.', p=>p.pro||'', {},{numFmt:'#,##0.00',fg:COL.numFg,bold:true}],
+      [(activeYear==='SVE'?'Proračun (s PDV)':'Proračun '+activeYear+'. (s PDV)'), p=>p.pro||'', {},{numFmt:'#,##0.00',fg:COL.numFg,bold:true}],
       ['RAZLIKA', null, {sz:12,bold:true,fg:COL.razFg,bgArgb:COL.razBg},{sz:12,bold:true,fg:COL.razFg,bgArgb:COL.razBg,numFmt:'#,##0.00'}],
       ['PROJEKTANT', p=>p.prj||'', {bold:true},{}],
       ['IZVOĐAČ', p=>p.izv||'', {bold:true},{}],
@@ -2626,7 +2736,7 @@ async function exportExcel(){
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download=`DSO_Dinamika_projekata_${ds}.xlsx`;
+  a.href=url;a.download=`DSO_Dinamika_projekata_${activeYear==='SVE'?'sve_godine':activeYear}_${ds}.xlsx`;
   document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
   toast('Excel preuzet');
@@ -2640,7 +2750,7 @@ window.addEventListener('DOMContentLoaded',async function(){
   await load();
   // NE pozivamo save() automatski - ne želimo prepisati Supabase podatke s lokalnim
   if (SUPA_NEDOSTUPNA) prikaziBazaMirovanje(); else sakrijBazaMirovanje();
-  if(!currentUser || sessionStorage.getItem('dso_prijava')!=='1'){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();jeGost=(sessionStorage.getItem('dso_gost')==='1');primijeniGostNacin();setPage(activePage||'pregled');}
+  if(!currentUser || sessionStorage.getItem('dso_prijava')!=='1'){showLoginScreen();}else{document.getElementById('username-display').textContent=currentUser;updateAvatar();jeGost=(sessionStorage.getItem('dso_gost')==='1');primijeniGostNacin();setPage(activePage||'pregled');uveziPlan2027();}
   setTimeout(prikaziZadnjegUrednika, 500);
 });
 
@@ -2680,6 +2790,7 @@ function submitLogin(){
   document.getElementById('username-display').textContent=currentUser;
   primijeniGostNacin();
   setPage(activePage||'pregled');
+  uveziPlan2027();
 }
 
 // Uklanja/vraca mogucnost unosa ovisno o jeGost.
@@ -2718,7 +2829,7 @@ function renderAnaliza() {
   const allProj = {};
   Object.keys(db).forEach(cat => {
     if (cat.startsWith('__') || !Array.isArray(db[cat])) return;
-    db[cat].forEach(p => allProj[p.id] = { naziv: p.u || p.id, cat, archived: p.archived });
+    db[cat].forEach(p => allProj[p.id] = { naziv: p.u || p.id, cat, archived: p.archived || !vidljiv(p) });
   });
 
   // Pripremi projekte s fazama
